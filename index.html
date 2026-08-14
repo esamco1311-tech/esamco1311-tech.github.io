@@ -175,11 +175,17 @@
   .limit-row b{color:var(--ink); font-family:'IBM Plex Mono';}
 
   .auth-overlay{
-    position:fixed; inset:0; background:var(--bg) var(--bg-glow); display:none;
-    align-items:center; justify-content:center; z-index:300; padding:22px;
+    position:fixed; inset:0;
+    background:radial-gradient(circle at 20% 0%, #1B4A5E 0%, transparent 55%),
+               radial-gradient(circle at 100% 100%, #123748 0%, transparent 50%),
+               #061119;
+    display:none; align-items:center; justify-content:center; z-index:300; padding:22px;
   }
   .auth-overlay.show{display:flex;}
-  .auth-box{width:100%; max-width:360px;}
+  .auth-box{
+    width:100%; max-width:360px; background:var(--card); border:1px solid var(--line);
+    border-radius:24px; padding:28px 24px; box-shadow:0 20px 60px -12px rgba(0,0,0,0.6);
+  }
   .auth-box .brand-row{display:flex; align-items:center; gap:12px; justify-content:center; margin-bottom:22px;}
   .auth-box h2{text-align:center; font-size:17px; margin:0 0 6px;}
   .auth-box .sub{text-align:center; font-size:12px; color:var(--ink-faint); margin-bottom:22px;}
