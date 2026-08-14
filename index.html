@@ -1,0 +1,1002 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#0A1B27">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="CASH PAY">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<title>CASH PAY - مدير المحافظ</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore-compat.js"></script>
+<style>
+  :root{
+    --bg:#0A1B27;
+    --bg-glow: radial-gradient(circle at 15% -10%, #123449 0%, transparent 55%), radial-gradient(circle at 100% 0%, #0F2E3E 0%, transparent 45%);
+    --card:#12303F;
+    --card-soft:#0F2938;
+    --input:#0B2029;
+    --line: rgba(140,190,200,0.14);
+    --line-soft: rgba(140,190,200,0.08);
+    --ink:#EAF4F3;
+    --ink-dim:#8FAAB4;
+    --ink-faint:#5F7A85;
+    --teal:#2AD1AC;
+    --teal-dim:#1B8E73;
+    --gold:#E8AE4D;
+    --sky:#5AB4E0;
+    --danger:#E2685F;
+  }
+  *{box-sizing:border-box;}
+  html,body{height:100%;}
+  body{
+    margin:0; min-height:100vh; background:var(--bg) var(--bg-glow);
+    font-family:'Cairo',sans-serif; color:var(--ink);
+    padding:26px 14px 60px;
+  }
+  .mono{font-family:'IBM Plex Mono',monospace;}
+  .wrap{max-width:960px; margin:0 auto;}
+
+  .appbar{
+    background:linear-gradient(160deg,#123748,#0C2530 70%);
+    border:1px solid var(--line); border-radius:24px;
+    padding:24px 26px; margin-bottom:20px; position:relative;
+  }
+  .appbar .brand-row{display:flex; align-items:center; gap:12px;}
+  .appbar .brand-icon{
+    width:42px; height:42px; border-radius:13px; flex:0 0 auto;
+    display:flex; align-items:center; justify-content:center;
+    background:linear-gradient(135deg,#E8AE4D,#2AD1AC);
+    box-shadow:0 6px 18px -4px rgba(42,209,172,0.55), inset 0 0 0 1px rgba(255,255,255,0.15);
+  }
+  .appbar .eyebrow{font-size:18px; letter-spacing:.06em; color:var(--teal); font-weight:800; text-transform:uppercase;}
+  .appbar h1{margin:6px 0 3px; font-size:23px; font-weight:800;}
+  .appbar p{margin:0; font-size:12.5px; color:var(--ink-dim);}
+
+  /* Wallet cards - signature element */
+  .wallets{
+    display:flex; gap:14px; overflow-x:auto; padding:4px 2px 12px; margin-bottom:18px;
+  }
+  .wallets::-webkit-scrollbar{height:6px;}
+  .wcard{
+    flex:0 0 230px; border-radius:20px; padding:18px 18px 16px; cursor:pointer;
+    position:relative; overflow:hidden;
+    background:linear-gradient(135deg,#173C4E,#0D2632);
+    border:1.5px solid var(--line);
+    transition:transform .15s, border-color .15s;
+  }
+  .wcard:hover{transform:translateY(-2px);}
+  .wcard.active{border-color:var(--teal); box-shadow:0 0 0 3px rgba(42,209,172,0.15);}
+  .wcard::after{
+    content:''; position:absolute; left:-30px; bottom:-40px; width:120px; height:120px;
+    border-radius:50%; background:radial-gradient(circle, rgba(42,209,172,0.14), transparent 70%);
+  }
+  .wcard .top{display:flex; justify-content:space-between; align-items:flex-start;}
+  .wcard .chip{
+    width:34px; height:34px; border-radius:10px; color:#fff;
+    display:flex; align-items:center; justify-content:center; font-size:10px; font-weight:800;
+  }
+  .wcard .accent-strip{height:4px; border-radius:20px 20px 0 0; margin:-18px -18px 14px;}
+  .wcard .tag{font-size:10px; color:var(--ink-faint); font-weight:700;}
+  .wcard .wicon{font-size:13px; cursor:pointer; opacity:0.75; padding:2px;}
+  .wcard .wicon:hover{opacity:1;}
+  .wcard .wname{font-size:12.5px; color:var(--ink-dim); font-weight:700; margin-top:14px;}
+  .wcard .phone{font-family:'IBM Plex Mono'; font-size:14px; margin-top:2px; letter-spacing:.03em;}
+  .wcard .bal-lbl{font-size:10px; color:var(--ink-faint); margin-top:12px;}
+  .wcard .bal{font-family:'IBM Plex Mono'; font-size:19px; font-weight:600; color:var(--teal); margin-top:2px;}
+  .wcard.add-icon{
+    flex:0 0 86px; display:flex; align-items:center; justify-content:center;
+    border:1.5px dashed var(--line); border-radius:20px; background:transparent;
+  }
+  .wcard.add-icon:hover{border-color:var(--teal);}
+
+  .search-row{margin-bottom:14px;}
+  .search-row input{
+    width:100%; background:var(--input); border:1px solid var(--line); border-radius:13px;
+    padding:12px 16px; color:var(--ink); font-family:'Cairo',sans-serif; font-size:13.5px; outline:none;
+    transition:border-color .15s, box-shadow .15s;
+  }
+  .search-row input::placeholder{color:var(--ink-faint);}
+  .search-row input:focus{border-color:var(--teal); box-shadow:0 0 0 3px rgba(42,209,172,0.15);}
+
+  .grid{display:grid; grid-template-columns:340px 1fr; gap:18px;}
+  @media (max-width:760px){ .grid{grid-template-columns:1fr;} }
+
+  .card{background:var(--card); border:1px solid var(--line); border-radius:22px; padding:20px;}
+  .card h2{font-size:13px; margin:0 0 16px; color:var(--ink-dim); font-weight:700; display:flex; align-items:center; gap:8px;}
+  .card h2 .dot{width:6px;height:6px;border-radius:50%;background:var(--teal);}
+
+  .field{margin-bottom:13px;}
+  .field label{display:block; font-size:11.5px; color:var(--ink-faint); margin-bottom:6px; font-weight:600;}
+  .field select, .field input{
+    width:100%; background:var(--input); border:1px solid var(--line); border-radius:13px;
+    padding:12px 13px; color:var(--ink); font-family:'Cairo',sans-serif; font-size:13.5px; outline:none;
+    transition:border-color .15s, box-shadow .15s; appearance:none; -webkit-appearance:none;
+  }
+  .field select{
+    background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%238FAAB4' stroke-width='2.5'><path d='M6 9l6 6 6-6'/></svg>");
+    background-repeat:no-repeat; background-position:14px center; padding-left:36px;
+  }
+  .field input[type=number], .field input[type=date]{font-family:'IBM Plex Mono',monospace;}
+  .field select:focus, .field input:focus{border-color:var(--teal); box-shadow:0 0 0 3px rgba(42,209,172,0.15);}
+
+  .segbtns{display:flex; gap:8px; margin-bottom:13px;}
+  .segbtn{
+    flex:1; text-align:center; padding:11px; border-radius:13px; font-size:13px; font-weight:700; cursor:pointer;
+    border:1px solid var(--line); color:var(--ink-dim); background:var(--input);
+  }
+  .segbtn.dep.on{background:rgba(42,209,172,0.16); border-color:var(--teal); color:var(--teal);}
+  .segbtn.wd.on{background:rgba(226,104,95,0.14); border-color:var(--danger); color:var(--danger);}
+  .segbtn.tr.on{background:rgba(90,180,224,0.16); border-color:var(--sky); color:var(--sky);}
+
+  .modal-overlay{
+    position:fixed; inset:0; background:rgba(5,15,20,0.65); display:none;
+    align-items:center; justify-content:center; z-index:100; padding:20px;
+  }
+  .modal-overlay.show{display:flex;}
+  .modal-box{
+    background:var(--card); border:1px solid var(--line); border-radius:20px; padding:22px;
+    width:100%; max-width:340px; box-shadow:0 20px 60px -12px rgba(0,0,0,0.5);
+  }
+  .modal-box h3{margin:0 0 16px; font-size:15px; color:var(--ink);}
+  .modal-box p{color:var(--ink-dim); font-size:13px; margin:0 0 18px; line-height:1.6;}
+  .modal-actions{display:flex; gap:10px; margin-top:6px;}
+  .modal-actions .btn{flex:1; width:auto;}
+
+  .report-overlay{
+    position:fixed; inset:0; background:rgba(5,15,20,0.78); display:none;
+    z-index:200; overflow-y:auto; padding:18px 14px 40px;
+  }
+  .report-overlay.show{display:block;}
+  .report-box{max-width:680px; margin:0 auto; background:var(--card); border:1px solid var(--line); border-radius:22px; padding:22px; position:relative;}
+  .report-close{
+    position:absolute; top:16px; left:16px; width:32px; height:32px; border-radius:50%;
+    background:var(--input); display:flex; align-items:center; justify-content:center;
+    cursor:pointer; font-size:15px; color:var(--ink-dim);
+  }
+  .report-close:hover{color:var(--ink);}
+  .report-header{display:flex; align-items:center; gap:12px; margin-bottom:18px; padding-left:36px;}
+  .report-badge{width:46px; height:46px; border-radius:14px; display:flex; align-items:center; justify-content:center; font-weight:800; color:#fff; font-size:12px; flex:0 0 auto;}
+  .report-name{font-size:16px; font-weight:800;}
+  .report-phone{font-family:'IBM Plex Mono'; font-size:13px; color:var(--ink-dim); margin-top:2px;}
+  .limit-row{
+    display:flex; justify-content:space-between; align-items:center; background:var(--card-soft);
+    border:1px solid var(--line-soft); border-radius:12px; padding:11px 15px; margin-bottom:8px; font-size:12.5px; color:var(--ink-dim);
+  }
+  .limit-row b{color:var(--ink); font-family:'IBM Plex Mono';}
+
+  .auth-overlay{
+    position:fixed; inset:0; background:var(--bg) var(--bg-glow); display:none;
+    align-items:center; justify-content:center; z-index:300; padding:22px;
+  }
+  .auth-overlay.show{display:flex;}
+  .auth-box{width:100%; max-width:360px;}
+  .auth-box .brand-row{display:flex; align-items:center; gap:12px; justify-content:center; margin-bottom:22px;}
+  .auth-box h2{text-align:center; font-size:17px; margin:0 0 6px;}
+  .auth-box .sub{text-align:center; font-size:12px; color:var(--ink-faint); margin-bottom:22px;}
+  .auth-tabs{display:flex; gap:8px; margin-bottom:18px; background:var(--card-soft); border-radius:13px; padding:4px;}
+  .auth-tab{flex:1; text-align:center; padding:9px; border-radius:10px; font-size:12.5px; font-weight:700; color:var(--ink-faint); cursor:pointer;}
+  .auth-tab.on{background:var(--card); color:var(--teal);}
+  .auth-msg{font-size:12px; color:var(--danger); min-height:16px; margin:-4px 0 8px; text-align:center;}
+  .auth-link{text-align:center; font-size:12px; color:var(--ink-faint); margin-top:12px; cursor:pointer;}
+  .auth-link:hover{color:var(--teal);}
+
+  .logout-btn{
+    position:absolute; top:22px; left:22px; font-size:11px; color:var(--ink-faint);
+    cursor:pointer; display:none; align-items:center; gap:4px;
+  }
+  .logout-btn:hover{color:var(--danger);}
+
+  .btn{
+    width:100%; border:none; border-radius:15px; padding:13px; font-family:'Cairo'; font-weight:700; font-size:14px;
+    cursor:pointer; display:flex; align-items:center; justify-content:center; gap:8px; transition:transform .1s, filter .15s;
+  }
+  .btn:active{transform:scale(0.98);}
+  .btn-primary{background:linear-gradient(135deg,#2AD1AC,#1B8E73); color:#04231A; box-shadow:0 10px 24px -8px rgba(42,209,172,0.5);}
+  .btn-outline{background:transparent; border:1px solid var(--line); color:var(--ink-dim);}
+  .btn-outline:hover{border-color:var(--teal); color:var(--teal);}
+  .btn-row{display:flex; gap:10px; margin-top:16px;}
+
+  .stats{display:grid; grid-template-columns:repeat(4,1fr); gap:10px; margin-bottom:16px;}
+  .stat{background:var(--card-soft); border:1px solid var(--line-soft); border-radius:14px; padding:12px 8px; text-align:center;}
+  .stat .l{font-size:10px; color:var(--ink-faint); font-weight:600;}
+  .stat .v{font-family:'IBM Plex Mono'; font-size:14.5px; font-weight:600; margin-top:4px;}
+  .stat .v.dep{color:var(--teal);} .stat .v.wd{color:var(--danger);} .stat .v.pf{color:var(--gold);}
+
+  table{width:100%; border-collapse:collapse; font-size:12.5px;}
+  thead th{
+    background:var(--card-soft); color:var(--ink-dim); font-weight:700; font-size:11px;
+    padding:10px 8px; text-align:center; border-bottom:1px solid var(--line);
+  }
+  tbody td{padding:9px 8px; text-align:center; border-bottom:1px solid var(--line-soft); color:var(--ink);}
+  tbody tr:hover{background:rgba(255,255,255,0.02);}
+  td.dep{color:var(--teal); font-family:'IBM Plex Mono';}
+  td.wd{color:var(--danger); font-family:'IBM Plex Mono';}
+  td.bal{color:var(--sky); font-family:'IBM Plex Mono'; font-weight:600;}
+  td.pf{color:var(--gold); font-family:'IBM Plex Mono';}
+  tfoot td{padding:11px 8px; text-align:center; font-weight:700; background:var(--card-soft); font-family:'IBM Plex Mono';}
+  .note-cell{color:var(--ink-dim); font-size:11.5px;}
+  .del-cell{cursor:pointer; color:var(--ink-faint);}
+  .del-cell:hover{color:var(--danger);}
+  .tbl-wrap{overflow-x:auto; border-radius:14px; border:1px solid var(--line-soft);}
+  .empty-row td{padding:26px; color:var(--ink-faint);}
+
+  .toast{
+    position:fixed; bottom:24px; left:50%; transform:translateX(-50%) translateY(20px);
+    background:#123748; border:1px solid var(--teal); color:var(--teal); padding:11px 20px; border-radius:100px;
+    font-size:13px; font-weight:700; opacity:0; transition:all .25s; pointer-events:none; z-index:50; white-space:nowrap;
+  }
+  .toast.show{opacity:1; transform:translateX(-50%) translateY(0);}
+
+  @media print{
+    body{background:#fff; padding:0;}
+    .appbar,.wallets,.grid > div:first-child,.btn-row,.no-print,.modal-overlay,.report-overlay,.search-row{display:none !important;}
+    .grid{display:block;}
+    .card{border:none; background:#fff; padding:0;}
+    table, th, td{color:#000 !important; background:#fff !important; border-color:#ccc !important;}
+    .print-title{display:block !important; margin-bottom:14px; font-size:18px; font-weight:800;}
+  }
+  .print-title{display:none;}
+</style>
+</head>
+<body>
+<div class="auth-overlay show" id="authOverlay">
+  <div class="auth-box">
+    <div class="brand-row">
+      <div class="brand-icon">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M3 7.5A2.5 2.5 0 0 1 5.5 5h10A2.5 2.5 0 0 1 18 7.5V8h.5A2.5 2.5 0 0 1 21 10.5v6A2.5 2.5 0 0 1 18.5 19h-13A2.5 2.5 0 0 1 3 16.5v-9Z" fill="#0C2530" stroke="#04231A" stroke-width="1.1"/>
+          <path d="M6 5h9.5A1.5 1.5 0 0 1 17 6.5V8H6a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1Z" fill="#04231A" opacity="0.25"/>
+          <circle cx="15.3" cy="13.1" r="2.1" fill="#04231A"/>
+          <circle cx="15.3" cy="13.1" r="1" fill="#2AD1AC"/>
+        </svg>
+      </div>
+      <div class="eyebrow">CASH PAY</div>
+    </div>
+    <h2 id="authTitle">تسجيل الدخول</h2>
+    <div class="sub">سجّل دخولك عشان بياناتك تتزامن على أي جهاز</div>
+
+    <div class="auth-tabs">
+      <div class="auth-tab on" id="tabLogin" onclick="switchAuthTab('login')">تسجيل الدخول</div>
+      <div class="auth-tab" id="tabRegister" onclick="switchAuthTab('register')">حساب جديد</div>
+    </div>
+
+    <div class="field">
+      <label>البريد الإلكتروني</label>
+      <input type="email" id="authEmail" placeholder="example@mail.com">
+    </div>
+    <div class="field">
+      <label>كلمة السر</label>
+      <input type="password" id="authPassword" placeholder="6 أحرف على الأقل">
+    </div>
+    <div class="auth-msg" id="authMsg"></div>
+
+    <button class="btn btn-primary" id="authSubmitBtn" onclick="doLogin()">دخول</button>
+    <div class="auth-link" id="forgotLink" onclick="doResetPassword()">نسيت كلمة السر؟</div>
+  </div>
+</div>
+
+<div class="wrap">
+
+  <div class="appbar">
+    <div class="logout-btn no-print" id="logoutBtn" onclick="doLogout()">🚪 خروج</div>
+    <div class="brand-row">
+      <div class="brand-icon">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M3 7.5A2.5 2.5 0 0 1 5.5 5h10A2.5 2.5 0 0 1 18 7.5V8h.5A2.5 2.5 0 0 1 21 10.5v6A2.5 2.5 0 0 1 18.5 19h-13A2.5 2.5 0 0 1 3 16.5v-9Z" fill="#0C2530" stroke="#04231A" stroke-width="1.1"/>
+          <path d="M6 5h9.5A1.5 1.5 0 0 1 17 6.5V8H6a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1Z" fill="#04231A" opacity="0.25"/>
+          <circle cx="15.3" cy="13.1" r="2.1" fill="#04231A"/>
+          <circle cx="15.3" cy="13.1" r="1" fill="#2AD1AC"/>
+        </svg>
+      </div>
+      <div class="eyebrow">CASH PAY</div>
+    </div>
+    <h1>مدير المحافظ</h1>
+    <p>إدخال ومتابعة حركات الإيداع والسحب لكل محفظة أولاً بأول</p>
+  </div>
+
+  <div class="search-row no-print">
+    <input type="text" id="walletSearch" placeholder="🔍 ابحث برقم المحفظة..." oninput="renderWalletCards()">
+  </div>
+
+  <div class="wallets" id="walletCards"></div>
+
+  <div class="modal-overlay" id="walletModalOverlay">
+    <div class="modal-box" style="max-width:380px; max-height:90vh; overflow-y:auto;">
+      <h3 id="walletModalTitle">إضافة محفظة جديدة</h3>
+      <div class="field">
+        <label>اسم المحفظة</label>
+        <input type="text" id="walletModalName" placeholder="مثال: محفظة أحمد">
+      </div>
+      <div class="field">
+        <label>رقم المحفظة</label>
+        <input type="tel" id="walletModalInput" placeholder="01xxxxxxxxx">
+      </div>
+      <div class="field">
+        <label>شركة المحمول / نوع المحفظة</label>
+        <select id="walletModalOperator">
+          <option value="vodafone">فودافون كاش</option>
+          <option value="etisalat">اتصالات كاش</option>
+          <option value="orange">أورانج كاش</option>
+          <option value="we">وي كاش</option>
+          <option value="bank">محفظة بنكية</option>
+          <option value="instapay">إنستاباي</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>الرصيد الحالي (قبل بدء التسجيل هنا)</label>
+        <input type="number" step="0.01" id="walletModalBalance" placeholder="0.00">
+      </div>
+      <div class="field">
+        <label>الحد اليومي</label>
+        <input type="number" step="0.01" id="walletModalDaily" placeholder="اختياري">
+      </div>
+      <div class="field">
+        <label>الحد الشهري</label>
+        <input type="number" step="0.01" id="walletModalMonthly" placeholder="اختياري">
+      </div>
+      <div class="field" style="margin-bottom:18px;">
+        <label>لون المحفظة</label>
+        <input type="color" id="walletModalColor" value="#2AD1AC" style="height:44px; padding:4px; cursor:pointer;">
+      </div>
+      <div class="modal-actions">
+        <button class="btn btn-outline" onclick="closeWalletModal()">إلغاء</button>
+        <button class="btn btn-primary" onclick="confirmWalletModal()">حفظ</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="deleteModalOverlay">
+    <div class="modal-box">
+      <h3>حذف المحفظة</h3>
+      <p id="deleteModalText"></p>
+      <div class="modal-actions">
+        <button class="btn btn-outline" onclick="closeDeleteModal()">إلغاء</button>
+        <button class="btn" style="background:var(--danger); color:#2B0D0A;" onclick="confirmDeleteWallet()">حذف</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="report-overlay" id="reportOverlay">
+    <div class="report-box">
+      <div class="report-close" onclick="closeReport()">✕</div>
+      <div class="report-header">
+        <div class="report-badge" id="repBadge">VF</div>
+        <div>
+          <div class="report-name" id="repName">—</div>
+          <div class="report-phone mono" id="repPhone">—</div>
+        </div>
+      </div>
+      <div class="stats" style="margin-bottom:14px;">
+        <div class="stat"><div class="l">الرصيد الحالي</div><div class="v mono" id="repBal">0.00</div></div>
+        <div class="stat"><div class="l">إجمالي الإيداع</div><div class="v dep mono" id="repDep">0.00</div></div>
+        <div class="stat"><div class="l">إجمالي السحب</div><div class="v wd mono" id="repWd">0.00</div></div>
+        <div class="stat"><div class="l">إجمالي الربح</div><div class="v pf mono" id="repProfit">0.00</div></div>
+      </div>
+      <div class="limit-row"><span>الحد اليومي</span><b id="repDaily">—</b></div>
+      <div class="limit-row" style="margin-bottom:16px;"><span>الحد الشهري</span><b id="repMonthly">—</b></div>
+      <div class="tbl-wrap">
+        <table>
+          <thead>
+            <tr><th>م</th><th>التاريخ</th><th>بيان</th><th>إيداع</th><th>سحب</th><th>الرصيد</th><th>الربح</th></tr>
+          </thead>
+          <tbody id="repBody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <div class="card no-print" style="margin-bottom:18px;">
+    <h2><span class="dot"></span> إجمالي كل المحافظ</h2>
+    <div class="stats" style="margin-bottom:0;">
+      <div class="stat"><div class="l">إجمالي رصيد المحافظ</div><div class="v mono" id="gBal">0.00</div></div>
+      <div class="stat"><div class="l">إجمالي الإيداع</div><div class="v dep mono" id="gDep">0.00</div></div>
+      <div class="stat"><div class="l">إجمالي السحب</div><div class="v wd mono" id="gWd">0.00</div></div>
+      <div class="stat"><div class="l">إجمالي الربح</div><div class="v pf mono" id="gProfit">0.00</div></div>
+    </div>
+  </div>
+
+  <div class="print-title" id="printTitle"></div>
+
+  <div class="grid">
+    <div class="card no-print">
+      <h2><span class="dot"></span> حركة جديدة</h2>
+
+      <div class="segbtns">
+        <div class="segbtn dep on" id="segDep" onclick="setKind('dep')">⬇ إيداع</div>
+        <div class="segbtn wd" id="segWd" onclick="setKind('wd')">⬆ سحب</div>
+        <div class="segbtn tr" id="segTr" onclick="setKind('tr')">📞 تحويل</div>
+      </div>
+
+      <div class="field" id="fieldDate">
+        <label>التاريخ</label>
+        <input type="date" id="fDate">
+      </div>
+      <div class="field" id="fieldNote">
+        <label>بيان (ملاحظة)</label>
+        <input type="text" id="fNote" placeholder="اختياري">
+      </div>
+      <div class="field" id="fieldTransferPhone" style="display:none;">
+        <label>رقم المحفظة المستلمة</label>
+        <input type="tel" id="fTransferPhone" placeholder="01xxxxxxxxx">
+      </div>
+      <div class="field">
+        <label id="amountLabel">المبلغ</label>
+        <input type="number" step="0.01" id="fAmount" placeholder="0.00">
+      </div>
+      <div class="field" id="fieldProfit" style="margin-bottom:6px;">
+        <label style="display:flex; align-items:center; justify-content:space-between;">
+          <span>الربح</span>
+          <span style="display:flex; align-items:center; gap:5px; font-weight:600; color:var(--ink-faint); cursor:pointer;">
+            <input type="checkbox" id="fProfitAuto" checked onchange="toggleProfitAuto()" style="width:auto; accent-color:#2AD1AC;">
+            <span id="profitAutoLabel">تلقائي 1.5%</span>
+          </span>
+        </label>
+        <input type="text" id="fProfitPreview" disabled value="0.00">
+      </div>
+
+      <button class="btn btn-primary" id="mainActionBtn" onclick="saveTx()" style="margin-top:6px;">➕ حفظ الحركة</button>
+    </div>
+
+    <div class="card">
+      <h2><span class="dot"></span> <span id="walletTitle">سجل الحركات</span></h2>
+
+      <div class="stats">
+        <div class="stat"><div class="l">الرصيد الحالى</div><div class="v mono" id="sBal">0.00</div></div>
+        <div class="stat"><div class="l">إجمالي الإيداع</div><div class="v dep mono" id="sDep">0.00</div></div>
+        <div class="stat"><div class="l">إجمالي السحب</div><div class="v wd mono" id="sWd">0.00</div></div>
+        <div class="stat"><div class="l">إجمالي الربح</div><div class="v pf mono" id="sProfit">0.00</div></div>
+      </div>
+
+      <div class="tbl-wrap">
+        <table>
+          <thead>
+            <tr><th>م</th><th>التاريخ</th><th>بيان</th><th>إيداع</th><th>سحب</th><th>الرصيد</th><th>الربح</th><th class="no-print"></th></tr>
+          </thead>
+          <tbody id="txBody"></tbody>
+          <tfoot id="txFoot"></tfoot>
+        </table>
+      </div>
+
+      <div class="btn-row no-print">
+        <button class="btn btn-outline" onclick="downloadExcel()">⬇️ تحميل إكسيل</button>
+        <button class="btn btn-outline" onclick="downloadPDF()">🖨️ تحميل PDF</button>
+        <button class="btn btn-outline" onclick="printTable()">🖨️ طباعة</button>
+      </div>
+    </div>
+  </div>
+
+  <p class="no-print" style="text-align:center; color:var(--ink-faint); font-size:10.5px; margin-top:18px; line-height:1.8;">
+    البيانات محفوظة فى هذا المتصفح فقط، ولا تُرسل لأى مكان.
+  </p>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const DEFAULT_WALLETS = [];
+const PROFIT_RATE_DEP = 0.015;
+const PROFIT_RATE_WD = 0.01;
+const OPERATORS = {
+  vodafone: {name:'فودافون كاش', color:'#E60000', badge:'VF'},
+  etisalat: {name:'اتصالات كاش', color:'#00A651', badge:'ET'},
+  orange:   {name:'أورانج كاش',  color:'#FF7900', badge:'OR'},
+  we:       {name:'وي كاش',      color:'#6F2C91', badge:'WE'},
+  bank:     {name:'محفظة بنكية', color:'#2AD1AC', badge:'🏦'},
+  instapay: {name:'إنستاباي',    color:'#5B2A86', badge:'IP'},
+};
+const STORE_WALLETS = 'wallets_list';
+const txKey = id => 'wallet_tx_' + id;
+
+/* ====== FIREBASE SETUP ======
+   استبدل القيم دي ببيانات مشروعك على Firebase (خطوات الإعداد في الرد اللي بعتهولك).
+*/
+const firebaseConfig = {
+  apiKey: "AIzaSyAGJWyrj_Se-hY4eXWZj3D8HkF-foKRXJs",
+  authDomain: "cashpay-app-4f5ed.firebaseapp.com",
+  projectId: "cashpay-app-4f5ed",
+  storageBucket: "cashpay-app-4f5ed.firebasestorage.app",
+  messagingSenderId: "827526440587",
+  appId: "1:827526440587:web:82529eb75f55aa79cfd68e"
+};
+firebase.initializeApp(firebaseConfig);
+const auth = firebase.auth();
+const db = firebase.firestore();
+let currentUID = null;
+let authMode = 'login';
+
+function switchAuthTab(mode){
+  authMode = mode;
+  document.getElementById('tabLogin').classList.toggle('on', mode==='login');
+  document.getElementById('tabRegister').classList.toggle('on', mode==='register');
+  document.getElementById('authTitle').textContent = mode==='login' ? 'تسجيل الدخول' : 'إنشاء حساب جديد';
+  document.getElementById('authSubmitBtn').textContent = mode==='login' ? 'دخول' : 'إنشاء الحساب';
+  document.getElementById('authSubmitBtn').onclick = mode==='login' ? doLogin : doRegister;
+  document.getElementById('forgotLink').style.display = mode==='login' ? 'block' : 'none';
+  document.getElementById('authMsg').textContent = '';
+}
+
+function authError(e){
+  const map = {
+    'auth/email-already-in-use':'البريد ده متسجل بحساب قبل كده',
+    'auth/invalid-email':'البريد الإلكتروني مش صحيح',
+    'auth/weak-password':'كلمة السر لازم تكون 6 أحرف على الأقل',
+    'auth/user-not-found':'مفيش حساب مسجل بالبريد ده',
+    'auth/wrong-password':'كلمة السر غلط',
+    'auth/invalid-credential':'البريد أو كلمة السر غلط',
+    'auth/too-many-requests':'محاولات كتير، حاول تاني بعد شوية',
+    'auth/network-request-failed':'مفيش اتصال بالإنترنت',
+  };
+  document.getElementById('authMsg').textContent = map[e.code] || 'حصل خطأ، حاول تاني';
+}
+
+async function doLogin(){
+  const email = document.getElementById('authEmail').value.trim();
+  const pass = document.getElementById('authPassword').value;
+  if(!email || !pass){ document.getElementById('authMsg').textContent = 'اكتب البريد وكلمة السر'; return; }
+  try{ await auth.signInWithEmailAndPassword(email, pass); }
+  catch(e){ authError(e); }
+}
+async function doRegister(){
+  const email = document.getElementById('authEmail').value.trim();
+  const pass = document.getElementById('authPassword').value;
+  if(!email || !pass){ document.getElementById('authMsg').textContent = 'اكتب البريد وكلمة السر'; return; }
+  try{ await auth.createUserWithEmailAndPassword(email, pass); }
+  catch(e){ authError(e); }
+}
+async function doResetPassword(){
+  const email = document.getElementById('authEmail').value.trim();
+  if(!email){ document.getElementById('authMsg').textContent = 'اكتب البريد الأول عشان نبعتلك رابط الاستعادة'; return; }
+  try{
+    await auth.sendPasswordResetEmail(email);
+    document.getElementById('authMsg').style.color = 'var(--teal)';
+    document.getElementById('authMsg').textContent = 'اتبعت رسالة استعادة كلمة السر على بريدك';
+  }catch(e){ authError(e); }
+}
+async function doLogout(){
+  await auth.signOut();
+  wallets = []; txMap = {}; activeId = null;
+  renderWalletCards(); renderTable(); renderGlobalStats();
+}
+
+async function loadCloudData(uid){
+  currentUID = uid;
+  try{
+    const doc = await db.collection('users').doc(uid).get();
+    if(doc.exists){
+      const data = doc.data();
+      wallets = data.wallets || [];
+      txMap = data.txMap || {};
+    }else{
+      await saveCloudData();
+    }
+  }catch(e){
+    toast('⚠️ تعذر الاتصال بالسحابة، هيتم العمل من آخر نسخة محفوظة بالجهاز');
+  }
+  try{ localStorage.setItem(STORE_WALLETS, JSON.stringify(wallets)); }catch(e){}
+  for(const id in txMap){ try{ localStorage.setItem(txKey(id), JSON.stringify(txMap[id])); }catch(e){} }
+  activeId = wallets[0]?.id || null;
+  renderWalletCards(); renderTable(); renderGlobalStats();
+  checkSharedText();
+}
+async function saveCloudData(){
+  if(!currentUID) return;
+  try{ await db.collection('users').doc(currentUID).set({wallets, txMap, updatedAt: Date.now()}); }
+  catch(e){ /* offline — local copy already saved */ }
+}
+
+auth.onAuthStateChanged(user=>{
+  if(user){
+    document.getElementById('authOverlay').classList.remove('show');
+    document.getElementById('logoutBtn').style.display = 'flex';
+    loadCloudData(user.uid);
+  }else{
+    document.getElementById('authOverlay').classList.add('show');
+    document.getElementById('logoutBtn').style.display = 'none';
+  }
+});
+
+let wallets = [];
+let activeId = null;
+let txMap = {}; // id -> [transactions]
+
+function fmt(n){ n = Number(n)||0; return n.toLocaleString('en-US',{minimumFractionDigits:2, maximumFractionDigits:2}); }
+function todayStr(){ const d=new Date(); return d.toISOString().slice(0,10); }
+function toast(msg){
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'), 1700);
+}
+
+async function persistWallets(){ try{ localStorage.setItem(STORE_WALLETS, JSON.stringify(wallets)); }catch(e){} saveCloudData(); }
+async function persistTx(id){ try{ localStorage.setItem(txKey(id), JSON.stringify(txMap[id])); }catch(e){} saveCloudData(); }
+
+function computeRows(list, opening){
+  let bal = Number(opening)||0;
+  return list.map((t,i)=>{
+    const dep = t.kind==='dep' ? Number(t.amount)||0 : 0;
+    const wd  = t.kind==='wd'  ? Number(t.amount)||0 : 0;
+    bal = bal + dep - wd;
+    const profit = (t.profit!==undefined && t.profit!==null && t.profit!=='')
+      ? (Number(t.profit)||0)
+      : (dep ? dep*PROFIT_RATE_DEP : wd*PROFIT_RATE_WD);
+    return {...t, idx:i+1, dep, wd, bal, profit};
+  });
+}
+
+function computeGlobalStats(){
+  let gBal=0, gDep=0, gWd=0, gProfit=0;
+  for(const w of wallets){
+    const rows = computeRows(txMap[w.id]||[], w.openingBalance||0);
+    gBal += rows.length ? rows[rows.length-1].bal : (w.openingBalance||0);
+    gDep += rows.reduce((s,r)=>s+r.dep,0);
+    gWd += rows.reduce((s,r)=>s+r.wd,0);
+    gProfit += rows.reduce((s,r)=>s+r.profit,0);
+  }
+  return {gBal,gDep,gWd,gProfit};
+}
+function renderGlobalStats(){
+  const {gBal,gDep,gWd,gProfit} = computeGlobalStats();
+  document.getElementById('gBal').textContent = fmt(gBal);
+  document.getElementById('gDep').textContent = fmt(gDep);
+  document.getElementById('gWd').textContent = fmt(gWd);
+  document.getElementById('gProfit').textContent = fmt(gProfit);
+}
+
+function renderWalletCards(){
+  const box = document.getElementById('walletCards');
+  const q = (document.getElementById('walletSearch')?.value || '').trim();
+  const list = q ? wallets.filter(w=>w.phone.includes(q)) : wallets;
+  box.innerHTML = list.map(w=>{
+    const rows = computeRows(txMap[w.id]||[], w.openingBalance||0);
+    const bal = rows.length ? rows[rows.length-1].bal : (w.openingBalance||0);
+    const op = OPERATORS[w.operator] || OPERATORS.vodafone;
+    const color = w.color || op.color;
+    return `<div class="wcard ${w.id===activeId?'active':''}" onclick="selectWallet('${w.id}')">
+      <div class="accent-strip" style="background:${color};"></div>
+      <div class="top">
+        <div class="chip" style="background:${op.color};">${op.badge}</div>
+        <div style="display:flex; gap:10px; align-items:center;">
+          <span class="wicon" onclick="event.stopPropagation(); openWalletModal('edit','${w.id}')" title="تعديل">✏️</span>
+          <span class="wicon" onclick="event.stopPropagation(); openDeleteModal('${w.id}')" title="حذف">🗑️</span>
+        </div>
+      </div>
+      ${w.name ? `<div class="wname">${w.name}</div>` : ''}
+      <div class="phone">${w.phone}</div>
+      <div class="bal-lbl">الرصيد</div>
+      <div class="bal">${fmt(bal)}</div>
+    </div>`;
+  }).join('') + `<div class="wcard add-icon" onclick="openWalletModal('add')" title="إضافة محفظة">
+      <svg width="30" height="30" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <circle cx="12" cy="12" r="10" stroke="#2AD1AC" stroke-width="1.6"/>
+        <path d="M12 7v10M7 12h10" stroke="#2AD1AC" stroke-width="1.8" stroke-linecap="round"/>
+      </svg>
+    </div>`;
+}
+
+function selectWallet(id){
+  activeId = id;
+  renderWalletCards(); renderTable(); renderGlobalStats();
+  openReport(id);
+}
+
+/* ---- Wallet add/edit modal ---- */
+let walletModalMode = 'add';
+let walletModalTargetId = null;
+
+function openWalletModal(mode, id){
+  walletModalMode = mode;
+  walletModalTargetId = id || null;
+  const title = document.getElementById('walletModalTitle');
+  if(mode==='edit'){
+    const w = wallets.find(x=>x.id===id);
+    title.textContent = 'تعديل بيانات المحفظة';
+    document.getElementById('walletModalName').value = w?.name || '';
+    document.getElementById('walletModalInput').value = w?.phone || '';
+    document.getElementById('walletModalOperator').value = w?.operator || 'vodafone';
+    document.getElementById('walletModalBalance').value = w?.openingBalance || 0;
+    document.getElementById('walletModalDaily').value = w?.dailyLimit || '';
+    document.getElementById('walletModalMonthly').value = w?.monthlyLimit || '';
+    document.getElementById('walletModalColor').value = w?.color || '#2AD1AC';
+  }else{
+    title.textContent = 'إضافة محفظة جديدة';
+    document.getElementById('walletModalName').value = '';
+    document.getElementById('walletModalInput').value = '';
+    document.getElementById('walletModalOperator').value = 'vodafone';
+    document.getElementById('walletModalBalance').value = '';
+    document.getElementById('walletModalDaily').value = '';
+    document.getElementById('walletModalMonthly').value = '';
+    document.getElementById('walletModalColor').value = '#2AD1AC';
+  }
+  document.getElementById('walletModalOverlay').classList.add('show');
+  setTimeout(()=>document.getElementById('walletModalName').focus(), 60);
+}
+function closeWalletModal(){
+  document.getElementById('walletModalOverlay').classList.remove('show');
+}
+async function confirmWalletModal(){
+  const name = document.getElementById('walletModalName').value.trim();
+  const phone = document.getElementById('walletModalInput').value.trim();
+  const operator = document.getElementById('walletModalOperator').value;
+  const openingBalance = Number(document.getElementById('walletModalBalance').value)||0;
+  const dailyLimit = Number(document.getElementById('walletModalDaily').value)||0;
+  const monthlyLimit = Number(document.getElementById('walletModalMonthly').value)||0;
+  const color = document.getElementById('walletModalColor').value;
+  if(!phone){ toast('اكتب رقم المحفظة'); return; }
+
+  if(walletModalMode==='edit' && walletModalTargetId){
+    const w = wallets.find(x=>x.id===walletModalTargetId);
+    if(w){ Object.assign(w, {name, phone, operator, openingBalance, dailyLimit, monthlyLimit, color}); }
+  }else{
+    const id = 'w' + Date.now();
+    wallets.push({id, name, phone, operator, openingBalance, dailyLimit, monthlyLimit, color});
+    txMap[id] = [];
+    activeId = id;
+  }
+  await persistWallets();
+  renderWalletCards(); renderTable(); renderGlobalStats();
+  closeWalletModal();
+  toast('✓ اتحفظت المحفظة');
+}
+
+/* ---- Delete confirmation modal ---- */
+let deleteTargetId = null;
+function openDeleteModal(id){
+  const w = wallets.find(x=>x.id===id);
+  if(!w) return;
+  deleteTargetId = id;
+  document.getElementById('deleteModalText').textContent = `هل تريد حذف محفظة ${w.phone} وكل حركاتها؟ الإجراء ده مينفعش يترجع فيه.`;
+  document.getElementById('deleteModalOverlay').classList.add('show');
+}
+function closeDeleteModal(){
+  document.getElementById('deleteModalOverlay').classList.remove('show');
+  deleteTargetId = null;
+}
+async function confirmDeleteWallet(){
+  const id = deleteTargetId;
+  if(!id) return;
+  wallets = wallets.filter(x=>x.id!==id);
+  delete txMap[id];
+  try{ localStorage.removeItem(txKey(id)); }catch(e){}
+  if(activeId===id) activeId = wallets[0]?.id || null;
+  await persistWallets();
+  renderWalletCards(); renderTable(); renderGlobalStats();
+  closeDeleteModal();
+  toast('🗑️ اتمسحت المحفظة');
+}
+
+/* ---- Wallet report overlay ---- */
+function openReport(id){
+  const w = wallets.find(x=>x.id===id);
+  if(!w) return;
+  const op = OPERATORS[w.operator] || OPERATORS.vodafone;
+  document.getElementById('repBadge').textContent = op.badge;
+  document.getElementById('repBadge').style.background = op.color;
+  document.getElementById('repName').textContent = w.name || op.name;
+  document.getElementById('repPhone').textContent = w.phone;
+
+  const rows = computeRows(txMap[w.id]||[], w.openingBalance||0);
+  const totDep = rows.reduce((s,r)=>s+r.dep,0);
+  const totWd = rows.reduce((s,r)=>s+r.wd,0);
+  const totPf = rows.reduce((s,r)=>s+r.profit,0);
+  const bal = rows.length ? rows[rows.length-1].bal : (w.openingBalance||0);
+
+  document.getElementById('repBal').textContent = fmt(bal);
+  document.getElementById('repDep').textContent = fmt(totDep);
+  document.getElementById('repWd').textContent = fmt(totWd);
+  document.getElementById('repProfit').textContent = fmt(totPf);
+  document.getElementById('repDaily').textContent = w.dailyLimit ? fmt(w.dailyLimit) : 'غير محدد';
+  document.getElementById('repMonthly').textContent = w.monthlyLimit ? fmt(w.monthlyLimit) : 'غير محدد';
+
+  const body = document.getElementById('repBody');
+  body.innerHTML = rows.length ? rows.map(r=>`
+    <tr>
+      <td>${r.idx}</td>
+      <td class="mono">${r.date}</td>
+      <td class="note-cell">${r.note||'—'}</td>
+      <td class="dep">${r.dep? fmt(r.dep):'—'}</td>
+      <td class="wd">${r.wd? fmt(r.wd):'—'}</td>
+      <td class="bal">${fmt(r.bal)}</td>
+      <td class="pf">${fmt(r.profit)}</td>
+    </tr>`).join('') : `<tr class="empty-row"><td colspan="7">لسه مفيش حركات فى المحفظة دى</td></tr>`;
+
+  document.getElementById('reportOverlay').classList.add('show');
+}
+function closeReport(){
+  document.getElementById('reportOverlay').classList.remove('show');
+}
+
+let kind = 'dep';
+function setKind(k){
+  kind = k;
+  document.getElementById('segDep').classList.toggle('on', k==='dep');
+  document.getElementById('segWd').classList.toggle('on', k==='wd');
+  document.getElementById('segTr').classList.toggle('on', k==='tr');
+  const isTransfer = k==='tr';
+  document.getElementById('fieldTransferPhone').style.display = isTransfer ? 'block' : 'none';
+  document.getElementById('amountLabel').textContent = isTransfer ? 'المبلغ المراد تحويله' : 'المبلغ';
+  const btn = document.getElementById('mainActionBtn');
+  if(isTransfer){
+    btn.textContent = '📞 تأكيد والانتقال لطلب التحويل';
+    btn.onclick = doTransfer;
+  }else{
+    btn.textContent = '➕ حفظ الحركة';
+    btn.onclick = saveTx;
+  }
+  updateProfitPreview();
+}
+let profitAuto = true;
+document.getElementById('fAmount').addEventListener('input', updateProfitPreview);
+function updateProfitPreview(){
+  const rate = kind==='dep' ? PROFIT_RATE_DEP : PROFIT_RATE_WD;
+  const lbl = document.getElementById('profitAutoLabel');
+  if(lbl) lbl.textContent = `تلقائي ${kind==='dep' ? '1.5%' : '1%'}`;
+  if(!profitAuto) return;
+  const amt = Number(document.getElementById('fAmount').value)||0;
+  document.getElementById('fProfitPreview').value = fmt(amt*rate);
+}
+function toggleProfitAuto(){
+  profitAuto = document.getElementById('fProfitAuto').checked;
+  const inp = document.getElementById('fProfitPreview');
+  inp.disabled = profitAuto;
+  if(profitAuto){ updateProfitPreview(); } else { inp.focus(); }
+}
+document.getElementById('fDate').value = todayStr();
+
+async function saveTx(){
+  if(!activeId) return;
+  const amount = document.getElementById('fAmount').value;
+  if(!amount || Number(amount)<=0){ toast('اكتب مبلغ صحيح'); return; }
+  const profitVal = profitAuto
+    ? Number(amount) * (kind==='dep' ? PROFIT_RATE_DEP : PROFIT_RATE_WD)
+    : (parseFloat(String(document.getElementById('fProfitPreview').value).replace(/,/g,'')) || 0);
+  const tx = {
+    date: document.getElementById('fDate').value || todayStr(),
+    note: document.getElementById('fNote').value || '',
+    kind, amount: Number(amount), profit: profitVal
+  };
+  txMap[activeId].push(tx);
+  document.getElementById('fAmount').value='';
+  document.getElementById('fNote').value='';
+  updateProfitPreview();
+  await persistTx(activeId);
+  renderWalletCards(); renderTable(); renderGlobalStats();
+  toast('✓ اتحفظت الحركة');
+}
+
+async function removeTx(idx){
+  txMap[activeId].splice(idx,1);
+  await persistTx(activeId);
+  renderWalletCards(); renderTable(); renderGlobalStats();
+}
+
+async function doTransfer(){
+  if(!activeId){ toast('اختار محفظة الأول'); return; }
+  const phone = document.getElementById('fTransferPhone').value.trim();
+  const amount = document.getElementById('fAmount').value;
+  if(!phone || phone.length<10){ toast('اكتب رقم محفظة صحيح'); return; }
+  if(!amount || Number(amount)<=0){ toast('اكتب مبلغ صحيح'); return; }
+
+  const profitVal = profitAuto
+    ? Number(amount) * PROFIT_RATE_WD
+    : (parseFloat(String(document.getElementById('fProfitPreview').value).replace(/,/g,'')) || 0);
+  const tx = {
+    date: document.getElementById('fDate').value || todayStr(),
+    note: document.getElementById('fNote').value || `تحويل لمحفظة ${phone}`,
+    kind:'wd', amount: Number(amount), profit: profitVal
+  };
+  txMap[activeId].push(tx);
+  await persistTx(activeId);
+  renderWalletCards(); renderTable(); renderGlobalStats();
+
+  const ussd = `*9*7*${phone}*${Number(amount)}%23`;
+  document.getElementById('fTransferPhone').value='';
+  document.getElementById('fAmount').value='';
+  toast('✓ اتسجل التحويل، هتفتح لوحة الاتصال دلوقتي');
+  setTimeout(()=>{ window.location.href = 'tel:' + ussd; }, 500);
+}
+
+function renderTable(){
+  const w = wallets.find(x=>x.id===activeId);
+  document.getElementById('walletTitle').textContent = w ? `سجل حركات — ${w.name ? w.name+' | ' : ''}${w.phone}` : 'سجل الحركات';
+  document.getElementById('printTitle').textContent = w ? `CASH PAY — بيان محفظة ${w.phone}` : '';
+
+  const rows = computeRows(txMap[activeId]||[], w?.openingBalance||0);
+  const body = document.getElementById('txBody');
+  if(rows.length===0){
+    body.innerHTML = `<tr class="empty-row"><td colspan="8">لسه مفيش حركات فى المحفظة دى</td></tr>`;
+  }else{
+    body.innerHTML = rows.map((r,i)=>`
+      <tr>
+        <td>${r.idx}</td>
+        <td class="mono">${r.date}</td>
+        <td class="note-cell">${r.note||'—'}</td>
+        <td class="dep">${r.dep? fmt(r.dep):'—'}</td>
+        <td class="wd">${r.wd? fmt(r.wd):'—'}</td>
+        <td class="bal">${fmt(r.bal)}</td>
+        <td class="pf">${fmt(r.profit)}</td>
+        <td class="del-cell no-print" onclick="removeTx(${i})">✕</td>
+      </tr>
+    `).join('');
+  }
+
+  const totDep = rows.reduce((s,r)=>s+r.dep,0);
+  const totWd  = rows.reduce((s,r)=>s+r.wd,0);
+  const totPf  = rows.reduce((s,r)=>s+r.profit,0);
+  const lastBal= rows.length? rows[rows.length-1].bal : 0;
+
+  document.getElementById('sBal').textContent = fmt(lastBal);
+  document.getElementById('sDep').textContent = fmt(totDep);
+  document.getElementById('sWd').textContent = fmt(totWd);
+  document.getElementById('sProfit').textContent = fmt(totPf);
+
+  document.getElementById('txFoot').innerHTML = `
+    <tr><td colspan="3">الاجمالي</td><td>${fmt(totDep)}</td><td>${fmt(totWd)}</td><td>${fmt(lastBal)}</td><td>${fmt(totPf)}</td><td class="no-print"></td></tr>
+  `;
+}
+
+function downloadPDF(){ window.print(); }
+function printTable(){ window.print(); }
+
+function downloadExcel(){
+  const w = wallets.find(x=>x.id===activeId);
+  const rows = computeRows(txMap[activeId]||[], w?.openingBalance||0);
+  const aoa = [
+    ['CASH PAY'],
+    [`بيان محفظة ${w?w.phone:''} حتى ${todayStr()}`],
+    [],
+    ['م','التاريخ','بيان (ملاحظة)','ايداع','سحب','الرصيد','الربح'],
+    ...rows.map(r=>[r.idx, r.date, r.note||'', r.dep||'', r.wd||'', r.bal, r.profit]),
+    ['الاجمالي','','',
+      rows.reduce((s,r)=>s+r.dep,0),
+      rows.reduce((s,r)=>s+r.wd,0),
+      rows.length? rows[rows.length-1].bal:0,
+      rows.reduce((s,r)=>s+r.profit,0)]
+  ];
+  const wsSheet = XLSX.utils.aoa_to_sheet(aoa);
+  wsSheet['!cols'] = [{wch:6},{wch:14},{wch:26},{wch:14},{wch:14},{wch:14},{wch:12}];
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, wsSheet, 'محفظة');
+  XLSX.writeFile(wb, `محفظة_${w?w.phone:'بيانات'}.xlsx`);
+  toast('✓ اتحمل ملف الإكسيل');
+}
+
+/* ---- Incoming shared message (e.g. Vodafone Cash SMS shared via Android share sheet) ---- */
+function checkSharedText(){
+  const params = new URLSearchParams(window.location.search);
+  const sharedText = params.get('text') || params.get('title') || '';
+  if(!sharedText) return;
+  const amountMatch = sharedText.match(/(\d+(?:[.,]\d+)?)/);
+  const phoneMatch = sharedText.match(/01[0125]\d{8}/);
+  const amount = amountMatch ? amountMatch[1].replace(',','') : '';
+  const phone = phoneMatch ? phoneMatch[0] : '';
+  if(!amount && !phone) return;
+
+  setKind('dep');
+  if(amount) document.getElementById('fAmount').value = amount;
+  document.getElementById('fNote').value = phone ? `استلام من ${phone} (فودافون كاش)` : 'استلام فودافون كاش';
+  updateProfitPreview();
+  toast('📩 اتقرت بيانات الرسالة، راجعها واضغط حفظ الحركة');
+  setTimeout(()=>{ document.getElementById('fAmount')?.scrollIntoView({behavior:'smooth', block:'center'}); }, 400);
+  history.replaceState(null, '', window.location.pathname);
+}
+
+setKind('dep');
+if('serviceWorker' in navigator){
+  window.addEventListener('load', ()=>{
+    navigator.serviceWorker.register('sw.js').catch(()=>{});
+  });
+}
+
+</script>
+</body>
+</html>
